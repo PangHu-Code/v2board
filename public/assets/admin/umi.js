@@ -6225,6 +6225,17 @@
                 }, f.a.createElement("div", {
                     className: ""
                 }, f.a.createElement(m, {
+                    title: "\u8282\u70b9\u5bf9\u63a5API\u5730\u5740",
+                    description: "v2node\u8282\u70b9\u4e00\u952e\u5bf9\u63a5\u4e13\u7528\u5730\u5740\u3002"
+                }, f.a.createElement("input", {
+                    type: "text",
+                    className: "form-control",
+                    placeholder: "\u8bf7\u8f93\u5165",
+                    defaultValue: u.server_api_url,
+                    onChange: e=>this.set("server", "server_api_url", e.target.value)
+                }))), f.a.createElement("div", {
+                    className: ""
+                }, f.a.createElement(m, {
                     title: "\u901a\u8baf\u5bc6\u94a5",
                     description: "V2board\u4e0e\u8282\u70b9\u901a\u8baf\u7684\u5bc6\u94a5\uff0c\u4ee5\u4fbf\u6570\u636e\u4e0d\u4f1a\u88ab\u4ed6\u4eba\u83b7\u53d6\u3002"
                 }, f.a.createElement("input", {
@@ -100709,9 +100720,12 @@
                 3: "\u5173\u95ed"
             },
             routeActionText: {
-                block: "\u7981\u6b62\u8bbf\u95ee",
+                block: "\u7981\u6b62\u8bbf\u95ee(\u57df\u540d\u76ee\u6807)",
+                block_ip: "\u7981\u6b62\u8bbf\u95ee(IP\u76ee\u6807)",
                 dns: "\u6307\u5b9aDNS\u670d\u52a1\u5668\u8fdb\u884c\u89e3\u6790",
-                route: "\u6307\u5b9a\u51fa\u7ad9\u670d\u52a1\u5668"
+                route: "\u6307\u5b9a\u51fa\u7ad9\u670d\u52a1\u5668(\u57df\u540d\u76ee\u6807)",
+                route_ip: "\u6307\u5b9a\u51fa\u7ad9\u670d\u52a1\u5668(IP\u76ee\u6807)",
+                default_out: "\u81ea\u5b9a\u4e49\u9ed8\u8ba4\u51fa\u7ad9"
             }
         }
     },
@@ -105953,7 +105967,7 @@
             }
             save() {
                 var e = this.state.server;
-                e.network_settings = e.network_settings ? "string" === typeof e.network_settings && JSON.parse(e.network_settings) : null,
+                e.network_settings = e.network_settings ? ("string" === typeof e.network_settings ? JSON.parse(e.network_settings) : e.network_settings) : null,
                 this.props.dispatch({
                     type: "serverV2node/save",
                     params: e,
@@ -106100,11 +106114,20 @@
                 }
             }
             formChange(e, t) {
-                this.setState({
-                    server: I()({},
-                    this.state.server, { [e] : t
+                if (e === "protocol" && ["anytls", "hysteria2", "trojan", "tuic"].includes(t)) {
+                    this.setState({
+                        server: I()({}, this.state.server, {
+                            protocol: t,
+                            tls: 1
+                        })
+                    });
+                } else {
+                    this.setState({
+                        server: I()({},
+                        this.state.server, { [e] : t
+                        })
                     })
-                })
+                }
             }
             changeServer(e, t) {
                 this.setState({
@@ -106530,7 +106553,17 @@
                         key: e.id
                     },
                     e.remarks)
-                })))), y.a.createElement("div", {
+                }))), y.a.createElement("div", {
+                    className: "form-group"
+                }, y.a.createElement("label", null, "\u4e00\u952e\u5b89\u88c5\u6307\u4ee4"), y.a.createElement(s["a"].TextArea, {
+                    value: e.install_command,
+                    rows: 4,
+                    readOnly: true,
+                    style: {
+                        backgroundColor: "#f5f5f5a0",
+                        cursor: "text"
+                    }
+                }))), y.a.createElement("div", {
                     className: "v2board-drawer-action"
                 },
                 y.a.createElement(l["a"], {
@@ -111094,7 +111127,14 @@
             }
             save() {
                 var e = u()({}, this.state.route);
-                "object" === typeof e.match ? e.match = e.match.filter(e=>!!e) : e.match = e.match.split(",").filter(e=>!!e),
+                // 规范化 match：如果是数组则过滤空值；如果是字符串则分割后过滤；null/undefined/空值统一为空数组
+                if (Array.isArray(e.match)) {
+                    e.match = e.match.filter(e=>!!e);
+                } else if (e.match && "string" === typeof e.match) {
+                    e.match = e.match.split(",").filter(e=>!!e);
+                } else {
+                    e.match = [];
+                }
                 this.props.dispatch({
                     type: "serverRoute/save",
                     params: e,
@@ -111136,7 +111176,7 @@
                             })
                         })
                     }
-                })), f.a.createElement("div", {
+                })), "default_out" != this.state.route.action && f.a.createElement("div", {
                     className: "form-group"
                 }, f.a.createElement("label", {
                     for: "example-text-input-alt"
@@ -111146,7 +111186,7 @@
                         type: "link"
                     }), "\u586b\u5199\u53c2\u8003")), f.a.createElement(y["a"].TextArea, {
                     rows: 5,
-                    placeholder: "example.com(\u5173\u952e\u5b57\u5339\u914d)\ndomain:example.com(\u5b50\u57df\u540d\u5339\u914d)\ngeosite:netflix(\u9884\u5b9a\u4e49\u57df\u540d\u5217\u8868)",
+                    placeholder: "route_ip" !== this.state.route.action && "block_ip" !== this.state.route.action ? "example.com(\u5173\u952e\u5b57\u5339\u914d)\ndomain:example.com(\u5b50\u57df\u540d\u5339\u914d)\ngeosite:netflix(\u9884\u5b9a\u4e49\u57df\u540d\u5217\u8868)" : "127.0.0.1(\u5355\u4e00\u5339\u914d)\n10.0.0.0/8(\u8303\u56f4\u5339\u914d)\ngeoip:cn(\u9884\u5b9a\u4e49\u5217\u8868\u5339\u914d)",
                     value: "object" === typeof this.state.route.match ? null === (e = this.state.route.match) || void 0 === e ? void 0 : e.join("\n") : null === (t = this.state.route.match) || void 0 === t ? void 0 : null === (n = t.split(",")) || void 0 === n ? void 0 : n.join("\n"),
                     onChange: e=>{
                         var t;
@@ -111174,10 +111214,16 @@
                 }, f.a.createElement(v["a"].Option, {
                     value: "block"
                 }, b["a"].routeActionText["block"]), f.a.createElement(v["a"].Option, {
+                    value: "block_ip"
+                }, b["a"].routeActionText["block_ip"]), f.a.createElement(v["a"].Option, {
                     value: "dns"
                 }, b["a"].routeActionText["dns"]), f.a.createElement(v["a"].Option, {
                     value: "route"
-                }, b["a"].routeActionText["route"])))), "dns" === this.state.route.action && f.a.createElement("div", {
+                }, b["a"].routeActionText["route"]), f.a.createElement(v["a"].Option, {
+                    value: "route_ip"
+                }, b["a"].routeActionText["route_ip"]), f.a.createElement(v["a"].Option, {
+                    value: "default_out"
+                }, b["a"].routeActionText["default_out"])))), "dns" === this.state.route.action && f.a.createElement("div", {
                     className: "form-group"
                 }, f.a.createElement("label", {
                     for: "example-text-input-alt"
@@ -111191,7 +111237,7 @@
                             })
                         })
                     }
-                })), "route" === this.state.route.action && f.a.createElement("div", {
+                })), ("route" === this.state.route.action || "route_ip"=== this.state.route.action || "default_out"=== this.state.route.action) && f.a.createElement("div", {
                     className: "form-group"
                 }, f.a.createElement("label", {
                     for: "example-text-input-alt"
