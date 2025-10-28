@@ -20,7 +20,7 @@ class Client
     {
         $token = $request->input('token');
         if (empty($token)) {
-            abort(403, 'token is null');
+            return redirect('https://www.google.com');
         }
         $submethod = (int)config('v2board.show_subscribe_method', 0);
         switch ($submethod) {
@@ -28,7 +28,7 @@ class Client
                 break;
             case 1:
                 if (!Cache::has("otpn_{$token}")) {
-                    abort(403, 'token is error');
+                    return redirect('https://www.google.com');
                 }
                 $usertoken = Cache::pull("otpn_{$token}");
                 Cache::forget("otp_{$usertoken}");
@@ -42,21 +42,21 @@ class Client
                     $counterBytes = pack('N*', 0) . pack('N*', $counter);
                     $idhash = Helper::base64DecodeUrlSafe($token);
                     if (strpos($idhash, ':') === false) {
-                        abort(403, 'token is error');
+                        return redirect('https://www.google.com');
                     }
                     $parts = explode(':', $idhash, 2);
                     [$userid, $clienthash] = $parts;
                     if (!$userid || !$clienthash) {
-                        abort(403, 'token is error');
+                        return redirect('https://www.google.com');
                     }
                     $user = User::where('id', $userid)->select('token')->first();
                     if (!$user) {
-                        abort(403, 'token is error');
+                        return redirect('https://www.google.com');
                     }
                     $usertoken = $user->token;
                     $hash = hash_hmac('sha1', $counterBytes, $usertoken, false);
                     if ($clienthash !== $hash) {
-                        abort(403, 'token is error');
+                        return redirect('https://www.google.com');
                     }
                     Cache::put("totp_{$token}", $usertoken, $timestep);
                 }
@@ -67,7 +67,7 @@ class Client
         }
         $user = User::where('token', $token)->first();
         if (!$user) {
-            abort(403, 'token is error');
+            return redirect('https://www.google.com');
         }
         $request->merge([
             'user' => $user
