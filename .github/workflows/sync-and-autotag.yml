@@ -1,12 +1,12 @@
 name: 🔄 Auto Sync & 🏷️ Auto Tag
 
 on:
-  # 每天凌晨 3 点（UTC）自动执行同步
+  # 每天凌晨 3 点（UTC）自动同步上游
   schedule:
     - cron: '0 3 * * *'
-  # 允许手动触发
+  # 允许手动执行
   workflow_dispatch:
-  # 同时监听 master 分支的 push（用于自动 tag）
+  # 检测 master 分支的 push（用于自动打标签）
   push:
     branches:
       - master
@@ -15,44 +15,53 @@ jobs:
   sync_and_tag:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write  # 允许推送内容（包括 tag）
 
     steps:
-      # 1️⃣ 检出仓库
+      # 1️⃣ 检出当前仓库
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          fetch-depth: 0  # 必须获取完整历史和 tag
+          fetch-depth: 0  # 获取完整历史和 tag
 
-      # 2️⃣ 配置 Git
+      # 2️⃣ 设置 Git 用户信息
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      # 3️⃣ 如果是定时任务或手动触发，则执行“同步上游”
+      # 3️⃣ 如果是定时任务或手动触发 → 执行同步上游
       - name: Sync from upstream
         if: ${{ github.event_name != 'push' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "🔄 同步上游仓库..."
+          echo "🔄 开始同步上游代码..."
           git remote add upstream https://github.com/v2board/v2board.git || true
           git fetch upstream
           git checkout master
           git merge upstream/master || true
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
           git push origin master
+          echo "✅ 上游同步完成"
 
-      # 4️⃣ 如果是你自己推送代码，则执行“自动打 Tag”
+      # 4️⃣ 如果是你自己推送 → 自动打 tag
       - name: Auto Tag after push
         if: ${{ github.event_name == 'push' && github.actor != 'github-actions[bot]' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "🏷️ 检测到用户推送到 master，开始自动打 tag..."
+
+          # 设置远程仓库 URL（带 Token 鉴权）
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
 
           # 获取最新 tag
           tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "当前最新版本: $tag"
 
-          # 自动 +1 生成新版本号
+          # 自动递增补丁号（v1.0.0 → v1.0.1）
           IFS='.' read -r major minor patch <<<"${tag#v}"
           new_tag="v$major.$minor.$((patch+1))"
           echo "新版本号: $new_tag"
@@ -61,8 +70,8 @@ jobs:
           last_commit_msg=$(git log -1 --pretty=%B | sed 's/"/\\"/g')
           echo "最近一次提交信息: $last_commit_msg"
 
-          # 打标签并推送
+          # 创建 tag 并推送
           git tag -a "$new_tag" -m "Auto tag: $new_tag - $last_commit_msg"
           git push origin "$new_tag"
 
-          echo "✅ 已创建新标签: $new_tag"
+          echo "✅ 已创建并推送新标签: $new_tag"
