@@ -1,0 +1,68 @@
+name: 🔄 Auto Sync & 🏷️ Auto Tag
+
+on:
+  # 每天凌晨 3 点（UTC）自动执行同步
+  schedule:
+    - cron: '0 3 * * *'
+  # 允许手动触发
+  workflow_dispatch:
+  # 同时监听 master 分支的 push（用于自动 tag）
+  push:
+    branches:
+      - master
+
+jobs:
+  sync_and_tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      # 1️⃣ 检出仓库
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0  # 必须获取完整历史和 tag
+
+      # 2️⃣ 配置 Git
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # 3️⃣ 如果是定时任务或手动触发，则执行“同步上游”
+      - name: Sync from upstream
+        if: ${{ github.event_name != 'push' }}
+        run: |
+          echo "🔄 同步上游仓库..."
+          git remote add upstream https://github.com/v2board/v2board.git || true
+          git fetch upstream
+          git checkout master
+          git merge upstream/master || true
+          git push origin master
+
+      # 4️⃣ 如果是你自己推送代码，则执行“自动打 Tag”
+      - name: Auto Tag after push
+        if: ${{ github.event_name == 'push' && github.actor != 'github-actions[bot]' }}
+        run: |
+          echo "🏷️ 检测到用户推送到 master，开始自动打 tag..."
+
+          # 获取最新 tag
+          tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "当前最新版本: $tag"
+
+          # 自动 +1 生成新版本号
+          IFS='.' read -r major minor patch <<<"${tag#v}"
+          new_tag="v$major.$minor.$((patch+1))"
+          echo "新版本号: $new_tag"
+
+          # 获取最后一次提交信息
+          last_commit_msg=$(git log -1 --pretty=%B | sed 's/"/\\"/g')
+          echo "最近一次提交信息: $last_commit_msg"
+
+          # 打标签并推送
+          git tag -a "$new_tag" -m "Auto tag: $new_tag - $last_commit_msg"
+          git push origin "$new_tag"
+
+          echo "✅ 已创建新标签: $new_tag"
