@@ -346,6 +346,47 @@ class UserController extends Controller
 
         $user['subscribe_url'] = Helper::getSubscribeUrl($user['token']);
 
+        // 获取所有订阅URL列表
+        $subscribeUrls = explode(',', config('v2board.subscribe_url'));
+        $subscribeList = [];
+        $submethod = (int)config('v2board.show_subscribe_method', 0);
+        $path = config('v2board.subscribe_path', '/api/v1/client/subscribe');
+        if (empty($path)) {
+            $path = '/api/v1/client/subscribe';
+        }
+        
+        // 根据订阅方法生成token
+        $token = $user['token'];
+        if ($submethod == 1) {
+            $newtoken = Cache::get("otp_{$token}");
+            if (!$newtoken) {
+                $newtoken = Helper::base64EncodeUrlSafe(random_bytes(24));
+                $added = Cache::add("otp_{$token}", $newtoken, 86400);
+                if ($added) {
+                    Cache::put("otpn_{$newtoken}", $token, 86400);
+                } else {
+                    $newtoken = Cache::get("otp_{$token}");
+                }
+            }
+            $token = $newtoken;
+        } elseif ($submethod == 2) {
+            $timestep = (int)config('v2board.show_subscribe_expire', 5) * 60;
+            $counter = floor(time() / $timestep);
+            $counterBytes = pack('N*', 0) . pack('N*', $counter);
+            $hash = hash_hmac('sha1', $counterBytes, $user['token'], false);
+            $token = Helper::base64EncodeUrlSafe("{$user->id}:{$hash}");
+        }
+        
+        // 为每个订阅URL生成完整链接
+        foreach ($subscribeUrls as $subscribeUrl) {
+            $subscribeUrl = trim($subscribeUrl);
+            if ($subscribeUrl) {
+                $subscribeList[] = $subscribeUrl . "{$path}?token={$token}";
+            }
+        }
+        
+        $user['subscribe_list'] = $subscribeList;
+
         $userService = new UserService();
         $user['reset_day'] = $userService->getResetDay($user);
         $user['allow_new_period'] = config('v2board.allow_new_period', 0);
