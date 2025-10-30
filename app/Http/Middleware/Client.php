@@ -20,7 +20,7 @@ class Client
     {
         $token = $request->input('token');
         if (empty($token)) {
-            return redirect('https://www.google.com');
+            return redirect('https://img.cmvideo.cn/publish/noms/2023/12/06/1O4SHFIFR36BD.gif');
         }
         $submethod = (int)config('v2board.show_subscribe_method', 0);
         switch ($submethod) {
@@ -28,7 +28,7 @@ class Client
                 break;
             case 1:
                 if (!Cache::has("otpn_{$token}")) {
-                    return redirect('https://www.google.com');
+                    return redirect('https://img.cmvideo.cn/publish/noms/2023/12/06/1O4SHFIFR36BD.gif');
                 }
                 $usertoken = Cache::pull("otpn_{$token}");
                 Cache::forget("otp_{$usertoken}");
@@ -42,21 +42,21 @@ class Client
                     $counterBytes = pack('N*', 0) . pack('N*', $counter);
                     $idhash = Helper::base64DecodeUrlSafe($token);
                     if (strpos($idhash, ':') === false) {
-                        return redirect('https://www.google.com');
+                        return redirect('https://img.cmvideo.cn/publish/noms/2023/12/06/1O4SHFIFR36BD.gif');
                     }
                     $parts = explode(':', $idhash, 2);
                     [$userid, $clienthash] = $parts;
                     if (!$userid || !$clienthash) {
-                        return redirect('https://www.google.com');
+                        return redirect('https://img.cmvideo.cn/publish/noms/2023/12/06/1O4SHFIFR36BD.gif');
                     }
                     $user = User::where('id', $userid)->select('token')->first();
                     if (!$user) {
-                        return redirect('https://www.google.com');
+                        return redirect('https://img.cmvideo.cn/publish/noms/2023/12/06/1O4SHFIFR36BD.gif');
                     }
                     $usertoken = $user->token;
                     $hash = hash_hmac('sha1', $counterBytes, $usertoken, false);
                     if ($clienthash !== $hash) {
-                        return redirect('https://www.google.com');
+                        return redirect('https://img.cmvideo.cn/publish/noms/2023/12/06/1O4SHFIFR36BD.gif');
                     }
                     Cache::put("totp_{$token}", $usertoken, $timestep);
                 }
@@ -67,7 +67,7 @@ class Client
         }
         $user = User::where('token', $token)->first();
         if (!$user) {
-            return redirect('https://www.google.com');
+            return redirect('https://img.cmvideo.cn/publish/noms/2023/12/06/1O4SHFIFR36BD.gif');
         }
         $request->merge([
             'user' => $user
