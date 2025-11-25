@@ -15,7 +15,7 @@ use App\Plugins\Telegram\Telegram;
 
 class ChangeIP extends Telegram {
     public $command = '/changeip';
-    public $description = '修改所有显示节点的地址';
+    public $description = '修改所有显示节点的地址(仅管理员)';
 
     public function handle($message, $match = []) {
         $telegramService = $this->telegramService;
