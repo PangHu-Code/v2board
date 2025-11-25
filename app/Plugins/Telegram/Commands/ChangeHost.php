@@ -13,9 +13,9 @@ use App\Models\ServerAnytls;
 use App\Models\ServerV2node;
 use App\Plugins\Telegram\Telegram;
 
-class ChangeIP extends Telegram {
-    public $command = '/changeip';
-    public $description = '修改所有显示节点的地址(仅管理员)';
+class ChangeHost extends Telegram {
+    public $command = '/changeHost';
+    public $description = '修改所有显示节点的Host(仅管理员)';
 
     public function handle($message, $match = []) {
         $telegramService = $this->telegramService;
@@ -36,7 +36,7 @@ class ChangeIP extends Telegram {
 
         // 获取IP/域名参数
         if (!isset($message->args[0])) {
-            $telegramService->sendMessage($message->chat_id, '❌ 请提供IP或域名\n用法: `/changeip 1.2.3.4` 或 `/changeip example.com`', 'markdown');
+            $telegramService->sendMessage($message->chat_id, "❌ 请提供IP或域名\n用法: `/changeHost 1.2.3.4` 或 `/changeHost example.com`", 'markdown');
             return;
         }
 
