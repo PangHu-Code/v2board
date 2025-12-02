@@ -35,11 +35,20 @@ class EPay {
             'money' => $order['total_amount'] / 100,
             'name' => $order['trade_no'],
             'notify_url' => $order['notify_url'],
-            // 'return_url' => $order['return_url'],
-            'return_url' => $_SERVER['HTTP_REFERER'] . '#/payment?trade_no=' . $order['trade_no'],
             'out_trade_no' => $order['trade_no'],
             'pid' => $this->config['pid']
         ];
+
+        // 检查是否有 HTTP_REFERER（浏览器前端有，客户端App没有）
+        if (isset($_SERVER['HTTP_REFERER']) && !empty($_SERVER['HTTP_REFERER'])) {
+            // 浏览器前端：回调到发起支付的前端域名（支持多域名）
+            $params['return_url'] = $_SERVER['HTTP_REFERER'] . '#/payment?trade_no=' . $order['trade_no'];
+        } else {
+            // 客户端App：使用后台配置的站点地址作为 return_url
+            // 客户端会通过轮询 /user/order/check?trade_no 来检查支付状态
+            $params['return_url'] = config('v2board.app_url') . '/#/payment?trade_no=' . $order['trade_no'];
+        }
+
         ksort($params);
         reset($params);
         $str = stripslashes(urldecode(http_build_query($params))) . $this->config['key'];
