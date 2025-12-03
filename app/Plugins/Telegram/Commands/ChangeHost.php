@@ -15,7 +15,7 @@ use App\Plugins\Telegram\Telegram;
 
 class ChangeHost extends Telegram {
     public $command = '/changehost';
-    public $description = '修改所有显示节点的Host(仅管理员)';
+    public $description = '按标签修改显示节点的Host(仅管理员)';
 
     public function handle($message, $match = []) {
         $telegramService = $this->telegramService;
@@ -34,13 +34,14 @@ class ChangeHost extends Telegram {
             return;
         }
 
-        // 获取IP/域名参数
-        if (!isset($message->args[0])) {
-            $telegramService->sendMessage($message->chat_id, "❌ 请提供IP或域名\n用法: `/changehost 1.2.3.4` 或 `/changehost example.com`", 'markdown');
+        // 获取tags和IP/域名参数
+        if (!isset($message->args[0]) || !isset($message->args[1])) {
+            $telegramService->sendMessage($message->chat_id, "❌ 参数不足\n用法: `/changehost 标签 IP或域名`\n示例: `/changehost Plan-A 1.1.1.1`", 'markdown');
             return;
         }
 
-        $newHost = trim($message->args[0]);
+        $tag = trim($message->args[0]);
+        $newHost = trim($message->args[1]);
 
         // 验证IP或域名格式
         if (!$this->isValidHostOrIP($newHost)) {
@@ -48,42 +49,44 @@ class ChangeHost extends Telegram {
             return;
         }
 
-        // 更新所有显示的节点
+        // 更新符合条件的节点（show=1 且 tags包含指定标签）
         $updatedCount = 0;
+        $tagPattern = '%"' . $tag . '"%';
 
         // Vmess
-        $vmessCount = ServerVmess::where('show', 1)->update(['host' => $newHost]);
+        $vmessCount = ServerVmess::where('show', 1)->where('tags', 'like', $tagPattern)->update(['host' => $newHost]);
         $updatedCount += $vmessCount;
 
         // Trojan
-        $trojanCount = ServerTrojan::where('show', 1)->update(['host' => $newHost]);
+        $trojanCount = ServerTrojan::where('show', 1)->where('tags', 'like', $tagPattern)->update(['host' => $newHost]);
         $updatedCount += $trojanCount;
 
         // Shadowsocks
-        $ssCount = ServerShadowsocks::where('show', 1)->update(['host' => $newHost]);
+        $ssCount = ServerShadowsocks::where('show', 1)->where('tags', 'like', $tagPattern)->update(['host' => $newHost]);
         $updatedCount += $ssCount;
 
         // Vless
-        $vlessCount = ServerVless::where('show', 1)->update(['host' => $newHost]);
+        $vlessCount = ServerVless::where('show', 1)->where('tags', 'like', $tagPattern)->update(['host' => $newHost]);
         $updatedCount += $vlessCount;
 
         // Hysteria
-        $hysteriaCount = ServerHysteria::where('show', 1)->update(['host' => $newHost]);
+        $hysteriaCount = ServerHysteria::where('show', 1)->where('tags', 'like', $tagPattern)->update(['host' => $newHost]);
         $updatedCount += $hysteriaCount;
 
         // Tuic
-        $tuicCount = ServerTuic::where('show', 1)->update(['host' => $newHost]);
+        $tuicCount = ServerTuic::where('show', 1)->where('tags', 'like', $tagPattern)->update(['host' => $newHost]);
         $updatedCount += $tuicCount;
 
         // AnyTLS
-        $anytlsCount = ServerAnytls::where('show', 1)->update(['host' => $newHost]);
+        $anytlsCount = ServerAnytls::where('show', 1)->where('tags', 'like', $tagPattern)->update(['host' => $newHost]);
         $updatedCount += $anytlsCount;
 
         // V2node
-        $v2nodeCount = ServerV2node::where('show', 1)->update(['host' => $newHost]);
+        $v2nodeCount = ServerV2node::where('show', 1)->where('tags', 'like', $tagPattern)->update(['host' => $newHost]);
         $updatedCount += $v2nodeCount;
 
         $text = "✅ 节点地址修改完成\n———————————————\n";
+        $text .= "标签: `{$tag}`\n";
         $text .= "新地址: `{$newHost}`\n";
         $text .= "更新节点数: `{$updatedCount}`\n";
         $text .= "———————————————\n";
