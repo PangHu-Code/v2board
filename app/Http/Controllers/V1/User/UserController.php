@@ -294,6 +294,20 @@ class UserController extends Controller
         ]);
     }
 
+    public function reportClient(Request $request)
+    {
+        $user = User::find($request->user['id']);
+        if (!$user) {
+            abort(500, __('The user does not exist'));
+        }
+        $user->client_login_at = time();
+        $user->save();
+
+        return response([
+            'data' => true
+        ]);
+    }
+
     public function getStat(Request $request)
     {
         $stat = [

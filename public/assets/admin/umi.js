@@ -70957,6 +70957,14 @@
                         }, e ? w()(1e3 * e).format("YYYY/MM/DD HH:mm") : null === e ? "\u957f\u671f\u6709\u6548" : "-")
                     }
                 }, {
+                    title: "\u5ba2\u6237\u7aef\u767b\u5f55\u65f6\u95f4",
+                    dataIndex: "client_login_at",
+                    key: "client_login_at",
+                    sorter: !0,
+                    render: e=>{
+                        return e ? w()(1e3 * e).format("YYYY/MM/DD HH:mm") : "-"
+                    }
+                }, {
                     title: "\u4f59\u989d",
                     dataIndex: "balance",
                     key: "balance",
@@ -71091,6 +71099,11 @@
                     }, {
                         key: "expired_at",
                         title: "\u5230\u671f\u65f6\u95f4",
+                        condition: [">=", ">", "<", "<="],
+                        type: "date"
+                    }, {
+                        key: "client_login_at",
+                        title: "\u5ba2\u6237\u7aef\u767b\u5f55\u65f6\u95f4",
                         condition: [">=", ">", "<", "<="],
                         type: "date"
                     }, {
