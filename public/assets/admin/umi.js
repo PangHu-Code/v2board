@@ -70957,6 +70957,14 @@
                         }, e ? w()(1e3 * e).format("YYYY/MM/DD HH:mm") : null === e ? "\u957f\u671f\u6709\u6548" : "-")
                     }
                 }, {
+                    title: "\u91cd\u7f6e\u65e5",
+                    dataIndex: "reset_day",
+                    key: "reset_day",
+                    sorter: !0,
+                    render: e=>{
+                        return null === e ? "-" : e + " \u5929"
+                    }
+                }, {
                     title: "\u5ba2\u6237\u7aef\u767b\u5f55\u65f6\u95f4",
                     dataIndex: "client_login_at",
                     key: "client_login_at",

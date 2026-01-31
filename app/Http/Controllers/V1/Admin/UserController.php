@@ -15,6 +15,7 @@ use App\Models\Plan;
 use App\Models\TicketMessage;
 use App\Models\User;
 use App\Services\AuthService;
+use App\Services\UserService;
 use App\Utils\Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -77,12 +78,17 @@ class UserController extends Controller
         $res = $userModel->forPage($current, $pageSize)
             ->get();
         $plan = Plan::get();
+        $userService = new UserService();
         for ($i = 0; $i < count($res); $i++) {
             for ($k = 0; $k < count($plan); $k++) {
                 if ($plan[$k]['id'] == $res[$i]['plan_id']) {
                     $res[$i]['plan_name'] = $plan[$k]['name'];
+                    $res[$i]['plan'] = $plan[$k];
                 }
             }
+            // 计算流量重置日
+            $res[$i]['reset_day'] = $userService->getResetDay($res[$i]);
+            unset($res[$i]['plan']);
             //统计在线设备
             $countalive = 0;
             $ips = [];
