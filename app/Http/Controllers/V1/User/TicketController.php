@@ -11,6 +11,7 @@ use App\Models\Plan;
 use App\Models\Order;
 use App\Services\TelegramService;
 use App\Services\TicketService;
+use App\Services\UserService;
 use App\Models\Ticket;
 use App\Models\TicketMessage;
 use App\Utils\Dict;
@@ -240,13 +241,14 @@ class TicketController extends Controller
 					$ip_address = $_SERVER['REMOTE_ADDR'];
 				}
 
-				$api_url = "http://ip-api.com/json/{$ip_address}?fields=520191&lang=zh-CN";
+				$api_url = "https://myip.ipip.net/json/{$ip_address}";
 				$response = file_get_contents($api_url);
 				$user_location = json_decode($response, true);
-				if ($user_location && $user_location['status'] === 'success') {
-					$location =  $user_location['city'] . ", " . $user_location['country'];
+				if ($user_location && $user_location['ret'] === 'ok' && !empty($user_location['data']['location'])) {
+					$loc = $user_location['data']['location'];
+					$location = implode(' ', array_filter($loc));
 				} else {
-					$location =  "无法确定用户地址";
+					$location = "无法确定用户地址";
 				}
 
 				$plan = Plan::where('id', $user->plan_id)->first();
@@ -254,7 +256,11 @@ class TicketController extends Controller
 
 				$money = $user->balance / 100;
 				$affmoney = $user->commission_balance / 100;
-				$telegramService->sendMessageWithAdmin("📮工单提醒 #{$ticket->id}\n———————————————\n邮箱：\n`{$user->email}`\n用户位置：\n`{$location}`\nIP:\n{$ip_address}\n套餐与流量：\n`{$planName} of {$transfer_enable}/{$remaining_traffic}`\n上传/下载：\n`{$u}/{$d}`\n到期时间：\n`{$expired_at}`\n余额/佣金余额：\n`{$money}/{$affmoney}`\n主题：\n`{$ticket->subject}`\n内容：\n {$message} ", true);
+				$last_login = $user->last_login_at ? date("Y-m-d H:i:s", $user->last_login_at) : '从未登录';
+				$userService = new UserService();
+				$resetDay = $userService->getResetDay($user);
+				$resetDayText = $resetDay !== null ? "{$resetDay}天" : '不重置';
+				$telegramService->sendMessageWithAdmin("📮工单提醒 #{$ticket->id}\n———————————————\n邮箱：\n`{$user->email}`\n用户位置：\n`{$location}`\nIP:\n{$ip_address}\n套餐与流量：\n`{$planName} of {$transfer_enable}/{$remaining_traffic}`\n上传/下载：\n`{$u}/{$d}`\n到期时间：\n`{$expired_at}`\n流量重置：\n`{$resetDayText}`\n最近登录：\n`{$last_login}`\n余额/佣金余额：\n`{$money}/{$affmoney}`\n主题：\n`{$ticket->subject}`\n内容：\n {$message} ", true);
 			} else {
 				// Handle case where user data is not found
 				$telegramService->sendMessageWithAdmin("User data not found for user ID: {$userid}", true);
