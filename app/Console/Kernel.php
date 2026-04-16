@@ -36,6 +36,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('check:commission')->everyFifteenMinutes();
         $schedule->command('check:ticket')->everyMinute();
         $schedule->command('check:renewal')->dailyAt('22:30');
+        $schedule->command('check:subscribeAnomaly')->hourly()->withoutOverlapping();
         // reset
         $schedule->command('reset:traffic')->daily();
         $schedule->command('reset:log')->daily();

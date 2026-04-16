@@ -11,6 +11,7 @@ use App\Services\ServerService;
 use App\Services\UserService;
 use App\Utils\Helper;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Redis;
 
 class ClientController extends Controller
 {
@@ -20,6 +21,7 @@ class ClientController extends Controller
             ?? ($_SERVER['HTTP_USER_AGENT'] ?? '');
         $flag = strtolower($flag);
         $user = $request->user;
+        $this->recordSubscribePull($request, $user);
         // account not expired and is not banned.
         $userService = new UserService();
         if ($userService->isAvailable($user)) {
@@ -52,6 +54,28 @@ class ClientController extends Controller
             $class = new General($user, $servers);
             return $class->handle();
         }
+    }
+
+    private function recordSubscribePull(Request $request, $user): void
+    {
+        $timestamp = time();
+        $userId = (int) $user->id;
+        $userAgent = trim((string) ($request->userAgent() ?? 'unknown'));
+        if ($userAgent === '') {
+            $userAgent = 'unknown';
+        }
+        $userAgent = mb_substr($userAgent, 0, 500);
+        $userAgent = str_replace(["\r", "\n"], ' ', $userAgent);
+
+        Redis::zadd('v2board_subscribe_pull_users', $timestamp, $userId);
+        Redis::expire('v2board_subscribe_pull_users', 86400 * 8);
+        Redis::hmset("v2board_subscribe_pull_meta_{$userId}", [
+            'email' => (string) $user->email,
+            'ip' => (string) ($request->ip() ?? 'unknown'),
+            'user_agent' => $userAgent,
+            'pulled_at' => $timestamp
+        ]);
+        Redis::expire("v2board_subscribe_pull_meta_{$userId}", 86400 * 8);
     }
 
     private function setSubscribeInfoToServers(&$servers, $user)
