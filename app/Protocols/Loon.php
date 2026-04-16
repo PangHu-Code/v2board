@@ -31,12 +31,15 @@ class Loon
             if ($item['type'] === 'shadowsocks') {
                 $uri .= self::buildShadowsocks($user['uuid'], $item);
             }elseif ($item['type'] === 'vmess') {
+                if (in_array($item['network'] ?? 'tcp', ['grpc', 'httpupgrade', 'xhttp'])) {
+                    continue;
+                }
                 $uri .= self::buildVmess($user['uuid'], $item);
             }elseif ($item['type'] === 'vless' && (($item['network'] ?? null) === 'tcp' || ($item['network'] ?? null) === 'ws')) {
                 $uri .= self::buildVless($user['uuid'], $item);
             }elseif ($item['type'] === 'trojan' && (($item['network'] ?? null) !== 'grpc')) {
                 $uri .= self::buildTrojan($user['uuid'], $item);
-            }elseif ($item['type'] === 'hysteria' && $item['version'] === 2) { //loon只支持hysteria2
+            }elseif ($item['type'] === 'hysteria2' || ($item['type'] === 'hysteria' && ($item['version'] ?? null) === 2)) { // loon只支持hysteria2
                 $uri .= self::buildHysteria($user['uuid'], $item);
             }elseif ($item['type'] === 'anytls') {
                 $uri .= self::buildAnytls($user['uuid'], $item);
@@ -57,6 +60,7 @@ class Loon
             $userKey = Helper::uuidToBase64($password, 32);
             $password = "{$serverKey}:{$userKey}";
         }
+        $networkSettings = $server['network_settings'] ?? [];
         $config = [
             "{$server['name']}=Shadowsocks",
         ];
@@ -65,13 +69,15 @@ class Loon
         $config[] = $server['cipher'];
         $config[] = $password;
 
-        if (isset($server['obfs']) && $server['obfs'] === 'http') {
-            $config[] = "obfs-name={$server['obfs']}";
-            if (isset($server['obfs-host']) && !empty($server['obfs-host'])) {
-                $config[] = "obfs-host={$server['obfs-host']}";
+        if (($server['obfs'] ?? null) === 'http' || (($server['network'] ?? null) === 'http')) {
+            $config[] = "obfs-name=http";
+            $obfsHost = $server['obfs-host'] ?? ($networkSettings['headers']['Host'] ?? $networkSettings['Host'] ?? null);
+            $obfsPath = $server['obfs-path'] ?? ($networkSettings['path'] ?? null);
+            if (!empty($obfsHost)) {
+                $config[] = "obfs-host={$obfsHost}";
             }
-            if (isset($server['obfs-path'])) {
-                $config[] = "obfs-uri={$server['obfs-path']}";
+            if ($obfsPath !== null && $obfsPath !== '') {
+                $config[] = "obfs-uri={$obfsPath}";
             }
         }
         $config[] = 'fast-open=false';
@@ -84,7 +90,8 @@ class Loon
 
     public static function buildVmess($uuid, $server)
     {
-        $networkSettings = $server['networkSettings'] ?? [];
+        $networkSettings = $server['network_settings'] ?? ($server['networkSettings'] ?? []);
+        $tlsSettings = $server['tls_settings'] ?? ($server['tlsSettings'] ?? []);
         $config = [
             "{$server['name']}=vmess",
             "{$server['host']}",
@@ -98,8 +105,8 @@ class Loon
 
         if ($server['network'] === 'tcp') {
             array_push($config, 'transport=tcp');
-            if ($server['networkSettings']) {
-                $tcpSettings = $server['networkSettings'];
+            if ($networkSettings) {
+                $tcpSettings = $networkSettings;
                 if (isset($tcpSettings['header']['type']) && !empty($tcpSettings['header']['type']) && $tcpSettings['header']['type'] == 'http')
                     $config = str_replace('transport=tcp', "transport={$tcpSettings['header']['type']}", $config);
                 if (isset($tcpSettings['header']['request']['path'][0]) && !empty($tcpSettings['header']['request']['path'][0]))
@@ -110,18 +117,19 @@ class Loon
         }
         if ($server['tls']) {
             array_push($config, 'over-tls=true');
-            if ($server['tlsSettings']) {
-                $tlsSettings = $server['tlsSettings'];
-                if (isset($tlsSettings['allowInsecure']) && !empty($tlsSettings['allowInsecure']))
-                    array_push($config, 'skip-cert-verify=' . ($tlsSettings['allowInsecure'] ? 'true' : 'false'));
-                if (isset($tlsSettings['serverName']) && !empty($tlsSettings['serverName']))
-                    array_push($config, "tls-name={$tlsSettings['serverName']}");
+            if ($tlsSettings) {
+                $allowInsecure = $tlsSettings['allow_insecure'] ?? $tlsSettings['allowInsecure'] ?? null;
+                $serverName = $tlsSettings['server_name'] ?? $tlsSettings['serverName'] ?? null;
+                if ($allowInsecure !== null)
+                    array_push($config, 'skip-cert-verify=' . ($allowInsecure ? 'true' : 'false'));
+                if (!empty($serverName))
+                    array_push($config, "tls-name={$serverName}");
             }
         }
         if ($server['network'] === 'ws') {
             array_push($config, 'transport=ws');
-            if ($server['networkSettings']) {
-                $wsSettings = $server['networkSettings'];
+            if ($networkSettings) {
+                $wsSettings = $networkSettings;
                 if (isset($wsSettings['path']) && !empty($wsSettings['path']))
                     array_push($config, "path={$wsSettings['path']}");
                 if (isset($wsSettings['headers']['Host']) && !empty($wsSettings['headers']['Host']))
@@ -200,17 +208,20 @@ class Loon
     
     public static function buildTrojan($password, $server)
     {
+        $tlsSettings = $server['tls_settings'] ?? [];
+        $serverName = $server['server_name'] ?? ($tlsSettings['server_name'] ?? '');
+        $allowInsecure = $server['allow_insecure'] ?? ($tlsSettings['allow_insecure'] ?? null);
         $config = [
             "{$server['name']}=trojan",
             "{$server['host']}",
             "{$server['port']}",
             "{$password}",
-            !empty($server['server_name']) ? "tls-name={$server['server_name']}" : "",
+            !empty($serverName) ? "tls-name={$serverName}" : "",
             'fast-open=false',
             'udp=true'
         ];
-        if (!empty($server['allow_insecure'])) {
-            array_push($config, $server['allow_insecure'] ? 'skip-cert-verify=true' : 'skip-cert-verify=false');
+        if ($allowInsecure !== null) {
+            array_push($config, $allowInsecure ? 'skip-cert-verify=true' : 'skip-cert-verify=false');
         }
         if (isset($server['network']) && (string)$server['network'] === 'ws') {
             array_push($config, 'ws=true');
@@ -230,7 +241,6 @@ class Loon
     
     public static function buildHysteria($password, $server)
     {
-
         $parts = explode(",",$server['port']);
         $firstPart = $parts[0];
         if (strpos($firstPart, '-') !== false) {
@@ -239,6 +249,9 @@ class Loon
         } else {
             $firstPort = $firstPart;
         }
+        $tlsSettings = $server['tls_settings'] ?? [];
+        $serverName = $server['server_name'] ?? ($tlsSettings['server_name'] ?? '');
+        $insecure = $server['insecure'] ?? ($tlsSettings['allow_insecure'] ?? null);
 
         $config = [
             "{$server['name']}=hysteria2",
@@ -246,11 +259,11 @@ class Loon
             "{$firstPort}",
             "password={$password}",
             "download-bandwidth={$server['up_mbps']}",
-            $server['server_name'] ? "sni={$server['server_name']}" : "",
+            $serverName ? "sni={$serverName}" : "",
             'udp=true'
         ];
-        if (!empty($server['insecure'])) {
-            array_push($config, $server['insecure'] ? 'skip-cert-verify=true' : 'skip-cert-verify=false');
+        if ($insecure !== null) {
+            array_push($config, $insecure ? 'skip-cert-verify=true' : 'skip-cert-verify=false');
         }
         if (isset($server['obfs'])){
             array_push($config, 'salamander-password=' . $server['obfs_password']);
