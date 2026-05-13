@@ -25,6 +25,11 @@ class EPay {
                 'label' => 'KEY',
                 'description' => '',
                 'type' => 'input',
+            ],
+            'type' => [
+                'label' => 'TYPE',
+                'description' => '支付类型，如: alipay, wxpay, qqpay',
+                'type' => 'input',
             ]
         ];
     }
@@ -38,7 +43,6 @@ class EPay {
             'out_trade_no' => $order['trade_no'],
             'pid' => $this->config['pid']
         ];
-
         // 检查是否有 HTTP_REFERER（浏览器前端有，客户端App没有）
         if (isset($_SERVER['HTTP_REFERER']) && !empty($_SERVER['HTTP_REFERER'])) {
             // 浏览器前端：回调到发起支付的前端域名（支持多域名）
@@ -49,6 +53,9 @@ class EPay {
             $params['return_url'] = config('v2board.app_url') . '/#/payment?trade_no=' . $order['trade_no'];
         }
 
+        if (!empty($this->config['type'])) {
+            $params['type'] = $this->config['type'];
+        }
         ksort($params);
         reset($params);
         $str = stripslashes(urldecode(http_build_query($params))) . $this->config['key'];
