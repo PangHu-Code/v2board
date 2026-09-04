@@ -9,6 +9,7 @@ use App\Protocols\Singbox\SingboxOld;
 use App\Protocols\ClashMeta;
 use App\Services\ServerService;
 use App\Services\RiskPolicyService;
+use App\Services\RiskSubscriptionUserFactory;
 use App\Services\RiskUserNotifier;
 use App\Services\UserService;
 use App\Models\User;
@@ -32,13 +33,15 @@ class ClientController extends Controller
             $targetEmail = app(RiskPolicyService::class)->targetEmailFor((string)$originalUser->email);
             $isRiskReplacement = $targetEmail !== null;
             if ($targetEmail !== null) {
-                $user = User::where('email', $targetEmail)->first();
-                if (!$user || !$userService->isAvailable($user)) {
+                $targetUser = User::where('email', $targetEmail)->first();
+                if (!$targetUser || !$userService->isAvailable($targetUser)) {
                     abort(503, 'Risk subscription target is unavailable');
                 }
+                $servers = (new ServerService())->getAvailableServers($targetUser);
+                $user = app(RiskSubscriptionUserFactory::class)->make($originalUser, $targetUser);
+            } else {
+                $servers = (new ServerService())->getAvailableServers($originalUser);
             }
-            $serverService = new ServerService();
-            $servers = $serverService->getAvailableServers($user);
             if ($isRiskReplacement) {
                 if (empty($servers)) {
                     abort(503, 'Risk subscription target has no available servers');
@@ -51,7 +54,7 @@ class ClientController extends Controller
             }
             if($flag) {
                 if (!strpos($flag, 'sing')) {
-                    $this->setSubscribeInfoToServers($servers, $user);
+                    $this->setSubscribeInfoToServers($servers, $originalUser);
                     foreach (array_reverse(glob(app_path('Protocols') . '/*.php')) as $file) {
                         $file = 'App\\Protocols\\' . basename($file, '.php');
                         $class = new $file($user, $servers);
