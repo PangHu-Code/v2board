@@ -66,14 +66,23 @@ class SubMeshRiskPolicyControllerTest extends TestCase
         $body = $this->body(false);
         $timestamp = (string)time();
         $signature = hash_hmac('sha256', $timestamp . "\n" . $body, str_repeat('a', 64));
+        $previousBody = $_SERVER['RAW_BODY'] ?? null;
+        $_SERVER['RAW_BODY'] = $body;
         $request = Request::create('/api/internal/submesh/risk-policy', 'PUT', [], [], [], [
             'HTTP_X_SUBMESH_TIMESTAMP' => $timestamp,
             'HTTP_X_SUBMESH_SIGNATURE' => $signature,
             'CONTENT_TYPE' => 'application/json',
-            'RAW_BODY' => $body,
         ]);
 
-        $response = (new SubMeshRiskPolicyController())->update($request, new RiskPolicyService($this->path));
+        try {
+            $response = (new SubMeshRiskPolicyController())->update($request, new RiskPolicyService($this->path));
+        } finally {
+            if ($previousBody === null) {
+                unset($_SERVER['RAW_BODY']);
+            } else {
+                $_SERVER['RAW_BODY'] = $previousBody;
+            }
+        }
 
         $this->assertSame(200, $response->getStatusCode());
     }
