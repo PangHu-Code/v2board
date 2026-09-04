@@ -61,6 +61,23 @@ class SubMeshRiskPolicyControllerTest extends TestCase
         $this->assertSame(7, json_decode($response->getContent(), true)['data']['version']);
     }
 
+    public function testAcceptsAdapterManRawBodyFallback(): void
+    {
+        $body = $this->body(false);
+        $timestamp = (string)time();
+        $signature = hash_hmac('sha256', $timestamp . "\n" . $body, str_repeat('a', 64));
+        $request = Request::create('/api/internal/submesh/risk-policy', 'PUT', [], [], [], [
+            'HTTP_X_SUBMESH_TIMESTAMP' => $timestamp,
+            'HTTP_X_SUBMESH_SIGNATURE' => $signature,
+            'CONTENT_TYPE' => 'application/json',
+            'RAW_BODY' => $body,
+        ]);
+
+        $response = (new SubMeshRiskPolicyController())->update($request, new RiskPolicyService($this->path));
+
+        $this->assertSame(200, $response->getStatusCode());
+    }
+
     private function body(bool $enabled): string
     {
         return json_encode([
