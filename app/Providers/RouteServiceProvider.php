@@ -68,6 +68,14 @@ class RouteServiceProvider extends ServiceProvider
     protected function mapApiRoutes()
     {
         Route::group([
+            'prefix' => '/api/internal/submesh',
+            'middleware' => ['api', 'throttle:12,1'],
+            'namespace' => $this->namespace
+        ], function ($router) {
+            $router->put('/risk-policy', 'Internal\\SubMeshRiskPolicyController@update');
+        });
+
+        Route::group([
             'prefix' => '/api/v1',
             'middleware' => 'api',
             'namespace' => $this->namespace
