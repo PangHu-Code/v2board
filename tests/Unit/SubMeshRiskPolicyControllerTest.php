@@ -66,8 +66,10 @@ class SubMeshRiskPolicyControllerTest extends TestCase
         $body = $this->body(false);
         $timestamp = (string)time();
         $signature = hash_hmac('sha256', $timestamp . "\n" . $body, str_repeat('a', 64));
-        $previousBody = $_SERVER['RAW_BODY'] ?? null;
-        $_SERVER['RAW_BODY'] = $body;
+        $previousRequestBody = $GLOBALS['HTTP_RAW_REQUEST_DATA'] ?? null;
+        $previousPostBody = $GLOBALS['HTTP_RAW_POST_DATA'] ?? null;
+        $GLOBALS['HTTP_RAW_REQUEST_DATA'] = $body;
+        $GLOBALS['HTTP_RAW_POST_DATA'] = $body;
         $request = Request::create('/api/internal/submesh/risk-policy', 'PUT', [], [], [], [
             'HTTP_X_SUBMESH_TIMESTAMP' => $timestamp,
             'HTTP_X_SUBMESH_SIGNATURE' => $signature,
@@ -77,10 +79,15 @@ class SubMeshRiskPolicyControllerTest extends TestCase
         try {
             $response = (new SubMeshRiskPolicyController())->update($request, new RiskPolicyService($this->path));
         } finally {
-            if ($previousBody === null) {
-                unset($_SERVER['RAW_BODY']);
+            if ($previousRequestBody === null) {
+                unset($GLOBALS['HTTP_RAW_REQUEST_DATA']);
             } else {
-                $_SERVER['RAW_BODY'] = $previousBody;
+                $GLOBALS['HTTP_RAW_REQUEST_DATA'] = $previousRequestBody;
+            }
+            if ($previousPostBody === null) {
+                unset($GLOBALS['HTTP_RAW_POST_DATA']);
+            } else {
+                $GLOBALS['HTTP_RAW_POST_DATA'] = $previousPostBody;
             }
         }
 

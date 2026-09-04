@@ -22,8 +22,11 @@ class SubMeshRiskPolicyController extends Controller
 
         $body = $request->getContent();
         if ($body === '') {
-            // AdapterMan exposes the exact Workerman request body through RAW_BODY.
-            $body = (string)($_SERVER['RAW_BODY'] ?? $request->server('RAW_BODY', ''));
+            // AdapterMan exposes the exact Workerman request body through these globals.
+            $body = (string)($GLOBALS['HTTP_RAW_REQUEST_DATA']
+                ?? $GLOBALS['HTTP_RAW_POST_DATA']
+                ?? $_SERVER['RAW_BODY']
+                ?? $request->server('RAW_BODY', ''));
         }
         if ($body === '' || strlen($body) > (int)config('submesh.risk_policy_max_bytes', 1048576)) {
             return response()->json(['message' => 'Invalid request.'], 400);
