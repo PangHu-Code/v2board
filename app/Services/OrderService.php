@@ -28,7 +28,8 @@ class OrderService
 
     public function open()
     {
-        return DB::transaction(function () {
+        $opened = false;
+        $result = DB::transaction(function () use (&$opened) {
             $order = Order::where('id', $this->order->id)->lockForUpdate()->first();
             if (!$order) return false;
             if ((int)$order->status === 3) return true;
@@ -48,6 +49,7 @@ class OrderService
                 if (!$order->save()) {
                     abort(500, '充值失败');
                 }
+                $opened = true;
                 return true;
             }
 
@@ -94,8 +96,14 @@ class OrderService
                 abort(500, '开通失败');
             }
 
+            $opened = true;
             return true;
         }, 3);
+
+        if ($result && $opened) {
+            app(RiskUserNotifier::class)->orderOpened($this->user, $this->order);
+        }
+        return $result;
     }
 
 

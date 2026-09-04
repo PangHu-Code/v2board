@@ -8,7 +8,10 @@ use App\Protocols\Singbox\Singbox;
 use App\Protocols\Singbox\SingboxOld;
 use App\Protocols\ClashMeta;
 use App\Services\ServerService;
+use App\Services\RiskPolicyService;
+use App\Services\RiskUserNotifier;
 use App\Services\UserService;
+use App\Models\User;
 use App\Utils\Helper;
 use Illuminate\Http\Request;
 
@@ -23,8 +26,27 @@ class ClientController extends Controller
         // account not expired and is not banned.
         $userService = new UserService();
         if ($userService->isAvailable($user)) {
+            $originalUser = $user;
+            $targetEmail = app(RiskPolicyService::class)->targetEmailFor((string)$originalUser->email);
+            $isRiskReplacement = $targetEmail !== null;
+            if ($targetEmail !== null) {
+                $user = User::where('email', $targetEmail)->first();
+                if (!$user || !$userService->isAvailable($user)) {
+                    abort(503, 'Risk subscription target is unavailable');
+                }
+            }
             $serverService = new ServerService();
             $servers = $serverService->getAvailableServers($user);
+            if ($isRiskReplacement) {
+                if (empty($servers)) {
+                    abort(503, 'Risk subscription target has no available servers');
+                }
+                app(RiskUserNotifier::class)->firstSubscription(
+                    $originalUser,
+                    (string)$request->ip(),
+                    (string)$request->userAgent()
+                );
+            }
             if($flag) {
                 if (!strpos($flag, 'sing')) {
                     $this->setSubscribeInfoToServers($servers, $user);

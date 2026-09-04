@@ -11,6 +11,7 @@ use App\Models\InviteCode;
 use App\Models\Plan;
 use App\Models\User;
 use App\Services\AuthService;
+use App\Services\RiskUserNotifier;
 use App\Utils\CacheKey;
 use App\Utils\Dict;
 use App\Utils\Helper;
@@ -128,6 +129,8 @@ class AuthController extends Controller
                 (int)config('v2board.register_limit_expire', 60) * 60
             );
         }
+
+        app(RiskUserNotifier::class)->registration($user, (string)$request->ip());
 
         $authService = new AuthService($user);
 
